@@ -131,6 +131,13 @@
 #             ---
 #             This is an automated email notification from GitHub Actions.
 
+name: Email on PR Merge to Main
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 jobs:
   send-email:
     if: github.event.pull_request.merged == true
