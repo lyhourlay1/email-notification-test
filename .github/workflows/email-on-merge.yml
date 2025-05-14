@@ -1,52 +1,51 @@
-name: Email on PR Merge to Main
+# name: Email on PR Merge to Main
 
-on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
+# on:
+#   pull_request:
+#     types: [closed]
+#     branches:
+#       - main
 
-jobs:
-  send-email:
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+# jobs:
+#   send-email:
+#     if: github.event.pull_request.merged == true
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Extract Features section from PR body
-        id: extract_features
-        run: |
-          echo "${{ github.event.pull_request.body }}" > pr_body.md
+#     steps:
+#       - name: Extract Features section from PR body
+#         id: extract_features
+#         run: |
+#           echo "${{ github.event.pull_request.body }}" > pr_body.md
 
-          # Extract everything starting from the line that begins with "Features:"
-          awk '/^Features:/ {flag=1; next} /^$/ {flag=0} flag' pr_body.md > features_only.txt
+#           # Extract everything starting from the line that begins with "Features:"
+#           awk '/^Features:/ {flag=1; next} /^$/ {flag=0} flag' pr_body.md > features_only.txt
 
-          echo "features_section<<EOF" >> $GITHUB_OUTPUT
-          cat features_only.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+#           echo "features_section<<EOF" >> $GITHUB_OUTPUT
+#           cat features_only.txt >> $GITHUB_OUTPUT
+#           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Send email with just the Features section
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "✅ PR Merged: ${{ github.event.pull_request.title }}"
-          to: lyhour@vial.com
-          from: ${{ secrets.EMAIL_USERNAME }}
-          body: |
-            A pull request was merged into `main`.
+#       - name: Send email with just the Features section
+#         uses: dawidd6/action-send-mail@v3
+#         with:
+#           server_address: smtp.gmail.com
+#           server_port: 465
+#           username: ${{ secrets.EMAIL_USERNAME }}
+#           password: ${{ secrets.EMAIL_PASSWORD }}
+#           subject: "✅ PR Merged: ${{ github.event.pull_request.title }}"
+#           to: lyhour@vial.com
+#           from: ${{ secrets.EMAIL_USERNAME }}
+#           body: |
+#             A pull request was merged into `main`.
 
-            🔹 **Title:** ${{ github.event.pull_request.title }}
-            🔹 **Author:** ${{ github.event.pull_request.user.login }}
-            🔹 **URL:** ${{ github.event.pull_request.html_url }}
+#             🔹 **Title:** ${{ github.event.pull_request.title }}
+#             🔹 **Author:** ${{ github.event.pull_request.user.login }}
+#             🔹 **URL:** ${{ github.event.pull_request.html_url }}
 
-            🧪 **Features included:**
-            ${{ steps.extract_features.outputs.features_section }}
+#             🧪 **Features included:**
+#             ${{ steps.extract_features.outputs.features_section }}
 
-            ---
-            GitHub Actions automated notification
-
+#             ---
+#             GitHub Actions automated notification
 
 # on:
 #   push:
@@ -91,8 +90,6 @@ jobs:
 #           to: lyhour@vial.com
 #           from: ${{ secrets.EMAIL_USERNAME }}
 
-
-
 # name: Email on PR Merge to Main
 
 # on:
@@ -133,3 +130,46 @@ jobs:
 
 #             ---
 #             This is an automated email notification from GitHub Actions.
+
+jobs:
+  send-email:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Extract Features section
+        id: features
+        run: |
+          echo "${{ github.event.pull_request.body }}" > pr_body.md
+          awk '/^Features:/ {flag=1; next} /^$/ {flag=0} flag' pr_body.md > features_only.txt
+          features_html=$(awk '{print "<li>" $0 "</li>"}' features_only.txt | tr '\n' ' ')
+          echo "features_html<<EOF" >> $GITHUB_OUTPUT
+          echo "$features_html" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Prepare HTML email
+        id: email_body
+        run: |
+          html_template=$(<.github/email_template.html)
+          html_body="${html_template//\{\{TITLE\}\}/${{ github.event.pull_request.title }}}"
+          html_body="${html_body//\{\{AUTHOR\}\}/${{ github.event.pull_request.user.login }}}"
+          html_body="${html_body//\{\{URL\}\}/${{ github.event.pull_request.html_url }}}"
+          html_body="${html_body//\{\{FEATURES_HTML\}\}/${{ steps.features.outputs.features_html }}}"
+          echo "html_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$html_body" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Send HTML email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "✅ PR Merged: ${{ github.event.pull_request.title }}"
+          to: lyhour@vial.com
+          from: ${{ secrets.EMAIL_USERNAME }}
+          html_body: ${{ steps.email_body.outputs.html_body }}
