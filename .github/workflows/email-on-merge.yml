@@ -1,27 +1,52 @@
-# name: Email on PR Merge to Main
+name: Email on PR Merge to Main
 
-# on:
-#   push:
-#     branches:
-#       - main
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
-# jobs:
-#   send-email:
-#     runs-on: ubuntu-latest
+jobs:
+  send-email:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
 
-#     steps:
-#       - name: Send email
-#         uses: dawidd6/action-send-mail@v3
-#         with:
-#           server_address: smtp.gmail.com
-#           server_port: 465
-#           username: ${{ secrets.EMAIL_USERNAME }}
-#           password: ${{ secrets.EMAIL_PASSWORD }}
-#           subject: "Upcoming Vial Features"
-#           body: ${{ github.event.pull_request.body }}
-#           to: lyhour@vial.com
-#           from: ${{ secrets.EMAIL_USERNAME }}
-# name: Email on PR Merge to Main
+    steps:
+      - name: Extract Features section from PR body
+        id: extract_features
+        run: |
+          echo "${{ github.event.pull_request.body }}" > pr_body.md
+
+          # Extract everything starting from the line that begins with "Features:"
+          awk '/^Features:/ {flag=1; next} /^$/ {flag=0} flag' pr_body.md > features_only.txt
+
+          echo "features_section<<EOF" >> $GITHUB_OUTPUT
+          cat features_only.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Send email with just the Features section
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "✅ PR Merged: ${{ github.event.pull_request.title }}"
+          to: lyhour@vial.com
+          from: ${{ secrets.EMAIL_USERNAME }}
+          body: |
+            A pull request was merged into `main`.
+
+            🔹 **Title:** ${{ github.event.pull_request.title }}
+            🔹 **Author:** ${{ github.event.pull_request.user.login }}
+            🔹 **URL:** ${{ github.event.pull_request.html_url }}
+
+            🧪 **Features included:**
+            ${{ steps.extract_features.outputs.features_section }}
+
+            ---
+            GitHub Actions automated notification
+
 
 # on:
 #   push:
@@ -68,43 +93,43 @@
 
 
 
-name: Email on PR Merge to Main
+# name: Email on PR Merge to Main
 
-on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
+# on:
+#   pull_request:
+#     types: [closed]
+#     branches:
+#       - main
 
-jobs:
-  send-email:
-    if: github.event.pull_request.merged == true # Only send email if PR was actually merged
-    runs-on: ubuntu-latest
+# jobs:
+#   send-email:
+#     if: github.event.pull_request.merged == true # Only send email if PR was actually merged
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Send email with PR details
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "✅ PR Merged: ${{ github.event.pull_request.title }}"
-          to: lyhour@vial.com
-          from: ${{ secrets.EMAIL_USERNAME }}
-          body: |
-            A pull request was successfully merged into the `main` branch.
+#     steps:
+#       - name: Send email with PR details
+#         uses: dawidd6/action-send-mail@v3
+#         with:
+#           server_address: smtp.gmail.com
+#           server_port: 465
+#           username: ${{ secrets.EMAIL_USERNAME }}
+#           password: ${{ secrets.EMAIL_PASSWORD }}
+#           subject: "✅ PR Merged: ${{ github.event.pull_request.title }}"
+#           to: lyhour@vial.com
+#           from: ${{ secrets.EMAIL_USERNAME }}
+#           body: |
+#             A pull request was successfully merged into the `main` branch.
 
-            🔹 **Title:** ${{ github.event.pull_request.title }}
-            🔹 **Author:** ${{ github.event.pull_request.user.login }}
-            🔹 **Merged by:** ${{ github.actor }}
-            🔹 **URL:** ${{ github.event.pull_request.html_url }}
-            🔹 **Branch:** ${{ github.event.pull_request.head.ref }} ➝ main
+#             🔹 **Title:** ${{ github.event.pull_request.title }}
+#             🔹 **Author:** ${{ github.event.pull_request.user.login }}
+#             🔹 **Merged by:** ${{ github.actor }}
+#             🔹 **URL:** ${{ github.event.pull_request.html_url }}
+#             🔹 **Branch:** ${{ github.event.pull_request.head.ref }} ➝ main
 
-            📝 **Description:**
-            ${{ github.event.pull_request.body }}
+#             📝 **Description:**
+#             ${{ github.event.pull_request.body }}
 
-            📅 **Merged at:** ${{ github.event.pull_request.merged_at }}
+#             📅 **Merged at:** ${{ github.event.pull_request.merged_at }}
 
-            ---
-            This is an automated email notification from GitHub Actions.
+#             ---
+#             This is an automated email notification from GitHub Actions.
