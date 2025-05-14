@@ -131,57 +131,6 @@
 #             ---
 #             This is an automated email notification from GitHub Actions.
 
-# name: Email on PR Merge to Main
-
-# on:
-#   pull_request:
-#     types: [closed]
-#     branches:
-#       - main
-# jobs:
-#   send-email:
-#     if: github.event.pull_request.merged == true
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: Checkout repo
-#         uses: actions/checkout@v4
-
-#       - name: Extract Features section
-#         id: features
-#         run: |
-#           echo "${{ github.event.pull_request.body }}" > pr_body.md
-#           awk '/^Features:/ {flag=1; next} /^$/ {flag=0} flag' pr_body.md > features_only.txt
-#           features_html=$(awk '{print "<li>" $0 "</li>"}' features_only.txt | tr '\n' ' ')
-#           echo "features_html<<EOF" >> $GITHUB_OUTPUT
-#           echo "$features_html" >> $GITHUB_OUTPUT
-#           echo "EOF" >> $GITHUB_OUTPUT
-
-#       - name: Prepare HTML email
-#         id: email_body
-#         run: |
-#           html_template=$(<.github/email_template.html)
-#           html_body="${html_template//\{\{TITLE\}\}/${{ github.event.pull_request.title }}}"
-#           html_body="${html_body//\{\{AUTHOR\}\}/${{ github.event.pull_request.user.login }}}"
-#           html_body="${html_body//\{\{URL\}\}/${{ github.event.pull_request.html_url }}}"
-#           html_body="${html_body//\{\{FEATURES_HTML\}\}/${{ steps.features.outputs.features_html }}}"
-#           echo "html_body<<EOF" >> $GITHUB_OUTPUT
-#           echo "$html_body" >> $GITHUB_OUTPUT
-#           echo "EOF" >> $GITHUB_OUTPUT
-
-#       - name: Send HTML email
-#         uses: dawidd6/action-send-mail@v3
-#         with:
-#           server_address: smtp.gmail.com
-#           server_port: 465
-#           username: ${{ secrets.EMAIL_USERNAME }}
-#           password: ${{ secrets.EMAIL_PASSWORD }}
-#           subject: "✅ PR Merged: ${{ github.event.pull_request.title }}"
-#           to: lyhour@vial.com
-#           from: ${{ secrets.EMAIL_USERNAME }}
-#           html_body: ${{ steps.email_body.outputs.html_body }}
-
-
 name: Email on PR Merge to Main
 
 on:
@@ -189,7 +138,6 @@ on:
     types: [closed]
     branches:
       - main
-
 jobs:
   send-email:
     if: github.event.pull_request.merged == true
@@ -199,70 +147,27 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Extract & Render Features as SVG-buttons
+      - name: Extract Features section
         id: features
         run: |
-          # 1. dump PR body & extract just the Features block
           echo "${{ github.event.pull_request.body }}" > pr_body.md
           awk '/^Features:/ {flag=1; next} /^$/ {flag=0} flag' pr_body.md > features_only.txt
-
-          # 2. write a tiny Python script to parse & emit <li>…<button>SVG</button></li>
-          cat << 'EOF' > parse_features.py
-import re
-SVG = """<svg width="480" height="39" viewBox="0 0 480 39" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="0.5" y="0.975708" width="479" height="37" rx="3.5" stroke="#E9E9E9"/>
-  <!-- …paste all your <path> defs here… -->
-</svg>"""
-features = []
-name = desc = demo = None
-with open('features_only.txt') as f:
-    for line in f:
-        line = line.strip()
-        if not line:
-            continue
-        if not line.startswith('-'):
-            if name and desc and demo:
-                features.append((name, desc, demo))
-            name, desc, demo = line.rstrip(':'), '', ''
-        elif 'description:' in line:
-            desc = line.split('description:')[1].strip()
-        elif 'demo:' in line:
-            match = re.search(r'\[link\]\((.+)\)', line)
-            demo = match.group(1) if match else ''
-            if name and desc and demo:
-                features.append((name, desc, demo))
-if name and desc and demo:
-    features.append((name, desc, demo))
-
-items = []
-for n, d, u in features:
-    btn = (
-      f'<button onclick="window.location.href=\'{u}\'" '
-      'style="border:none;background:none;cursor:pointer;padding:0;margin-top:8px;">'
-      + SVG +
-      '</button>'
-    )
-    items.append(
-      f'<li style="margin-bottom:16px;font-size:14px;line-height:1.4;">'
-      f'<strong>{n}</strong><br>{d}<br>{btn}</li>'
-    )
-print("::set-output name=features_html::" + "".join(items))
-EOF
-
-          # 3. run it
-          python3 parse_features.py
+          features_html=$(awk '{print "<li>" $0 "</li>"}' features_only.txt | tr '\n' ' ')
+          echo "features_html<<EOF" >> $GITHUB_OUTPUT
+          echo "$features_html" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Prepare HTML email
         id: email_body
         run: |
-          template=$(<.github/email_template.html)
-          body="${template//\{\{TITLE\}\}/${{ github.event.pull_request.title }}}"
-          body="${body//\{\{AUTHOR\}\}/${{ github.event.pull_request.user.login }}}"
-          body="${body//\{\{URL\}\}/${{ github.event.pull_request.html_url }}}"
-          body="${body//\{\{FEATURES_HTML\}\}/${{ steps.features.outputs.features_html }}}"
+          html_template=$(<.github/email_template.html)
+          html_body="${html_template//\{\{TITLE\}\}/${{ github.event.pull_request.title }}}"
+          html_body="${html_body//\{\{AUTHOR\}\}/${{ github.event.pull_request.user.login }}}"
+          html_body="${html_body//\{\{URL\}\}/${{ github.event.pull_request.html_url }}}"
+          html_body="${html_body//\{\{FEATURES_HTML\}\}/${{ steps.features.outputs.features_html }}}"
           echo "html_body<<EOF" >> $GITHUB_OUTPUT
-          echo "$body"            >> $GITHUB_OUTPUT
-          echo "EOF"             >> $GITHUB_OUTPUT
+          echo "$html_body" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Send HTML email
         uses: dawidd6/action-send-mail@v3
