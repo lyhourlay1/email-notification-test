@@ -17,7 +17,51 @@ jobs:
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "PR Merged to Main"
-          body: "A pull request was merged into the main branch. Check the repository for details."
+          subject: "Upcoming Vial Features"
+          body: ${{ github.event.pull_request.body }}
           to: lyhour@vial.com
           from: ${{ secrets.EMAIL_USERNAME }}
+# name: Email on PR Merge to Main
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   send-email:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Install PostgreSQL client
+#         run: sudo apt-get install postgresql-client -y
+
+#       - name: Query PostgreSQL database and save result
+#         id: db_query
+#         env:
+#           PGHOST: ${{ secrets.PG_HOST }}
+#           PGPORT: ${{ secrets.PG_PORT }}
+#           PGDATABASE: ${{ secrets.PG_DATABASE }}
+#           PGUSER: ${{ secrets.PG_USER }}
+#           PGPASSWORD: ${{ secrets.PG_PASSWORD }}
+#         run: |
+#           result=$(psql -t -c "SELECT email FROM edc_users WHERE email = 'lyhour@vial.com';")
+#           echo "active_users=$result" >> $GITHUB_OUTPUT
+
+#       - name: Send email
+#         uses: dawidd6/action-send-mail@v3
+#         with:
+#           server_address: smtp.gmail.com
+#           server_port: 465
+#           username: ${{ secrets.EMAIL_USERNAME }}
+#           password: ${{ secrets.EMAIL_PASSWORD }}
+#           subject: "PR Merged to Main"
+#           body: |
+#             A pull request was merged into the main branch.
+
+#             Filtered result from DB:
+#             Active users count: ${{ steps.db_query.outputs.active_users }}
+
+#             Check the repository for more details.
+#           to: lyhour@vial.com
+#           from: ${{ secrets.EMAIL_USERNAME }}
