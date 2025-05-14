@@ -334,7 +334,7 @@ jobs:
         run: |
           echo "${{ github.event.pull_request.body }}" > pr_body.md
           awk '/^Features:/ {flag=1; next} /^$/ {flag=0} flag' pr_body.md > features_only.txt
-          features_html=$(tr '\n' ' ' < features_only.txt)
+          features_html=$(awk '{print $0 }' features_only.txt | tr '\n' ' ')
           echo "features_html<<EOF" >> $GITHUB_OUTPUT
           echo "$features_html" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
